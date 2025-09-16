@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from xmlrpc import client as xmlrpclib
 
 
-class Project:
+class Project():
     """Wrapper around the Odoo XML-RPC project API with shared helpers."""
 
     def __init__(self, env_path: str = ".env", defaults: Optional[Dict[str, str]] = None) -> None:
