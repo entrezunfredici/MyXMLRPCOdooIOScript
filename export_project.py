@@ -26,13 +26,12 @@ def fields_available(model):
 def sr(model, domain, fields, limit=0):
     return MODELS.execute_kw(DB, uid, PWD, model, 'search_read', [domain], {'fields':fields, 'limit':limit})
 
-# Champs potentiels utiles (on filtrera selon disponibilité réelle)
 task_field_candidates = [
     'id','name','user_id','project_id','stage_id','priority','kanban_state',
     'description','tag_ids',
     'date_deadline','date_assign','date_start','date_end',
     'planned_hours','remaining_hours','progress',
-    'planned_date_begin','planned_date_end',            # ≥ v14+
+    'planned_date_begin','planned_date_end',
     'create_date','write_date'
 ]
 
