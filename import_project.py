@@ -5,9 +5,9 @@ import csv, json, sys
 from datetime import datetime
 from xmlrpc import client as xmlrpclib
 
-URL = "https://TON_ODOO_URL"   # ex: "https://odoo.mondomaine.com"
-DB = "NOM_DE_TA_DB"
-USER = "email@exemple.com"
+URL = "https://bleu-canard.odoo.com"   # ex: "https://odoo.mondomaine.com"
+DB = "odoo"
+USER = "superfred2468@gmail.com"
 PWD = "TON_MOT_DE_PASSE"
 
 PROJECT_FILTER = {"type": "name", "value": "MyMemoMaster"}  # ou {"type":"id","value":123}
