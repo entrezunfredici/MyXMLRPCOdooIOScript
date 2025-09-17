@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys
@@ -13,7 +13,9 @@ DEFAULTS = {
 }
 ALLOWED_FIELDS = {
     'description', 'date_deadline', 'planned_date_begin', 'planned_date_end',
-    'date_start', 'date_end', 'planned_hours', 'priority',
+    'date_planned_start', 'date_planned_end',
+    'date_start', 'date_end', 'planned_hours', 'allocated_hours', 'priority',
+    'allow_billable', 'milestone_id',
 }
 
 

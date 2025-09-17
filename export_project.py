@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys
@@ -7,11 +7,13 @@ from project import Project
 
 PROJECT_FILTER = {"type": "name", "value": "MyMemoMaster"}
 TASK_FIELD_CANDIDATES = [
-    'id', 'name', 'user_id', 'project_id', 'stage_id', 'priority', 'kanban_state',
-    'description', 'tag_ids',
+    'id', 'name', 'user_id', 'project_id', 'stage_id', 'task_type_id',
+    'priority', 'kanban_state', 'kanban_state_label',
+    'description', 'tag_ids', 'milestone_id', 'parent_id',
+    'allow_billable', 'is_closed',
     'date_deadline', 'date_assign', 'date_start', 'date_end',
-    'planned_hours', 'remaining_hours', 'progress',
-    'planned_date_begin', 'planned_date_end',
+    'planned_hours', 'allocated_hours', 'remaining_hours', 'progress',
+    'planned_date_begin', 'planned_date_end', 'date_planned_start', 'date_planned_end',
     'create_date', 'write_date',
 ]
 DEFAULTS = {
