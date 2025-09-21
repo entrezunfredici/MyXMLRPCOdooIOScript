@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys
@@ -27,7 +27,7 @@ def main() -> None:
         sys.exit(1)
 
     ok, ko = project.import_tasks(
-        updates_path='tasks_to_update.json',
+        updates_path='tasks_gantt_role_balanced_v2.json',
         allowed_fields=ALLOWED_FIELDS,
     )
     print(f"MAJ terminee: OK={ok} KO={ko}")

@@ -206,45 +206,176 @@ class Project:
 
     def import_tasks(
         self,
-        updates_path: str = 'tasks_to_update.json',
+        updates_path: str = "tasks_to_update.json",
         allowed_fields: Optional[Iterable[str]] = None,
     ) -> Tuple[int, int]:
-        update_data = json.loads(Path(updates_path).read_text(encoding='utf-8'))
+        raw_updates = json.loads(Path(updates_path).read_text(encoding="utf-8"))
+        if isinstance(raw_updates, dict):
+            tasks_section = raw_updates.get("tasks")
+            if isinstance(tasks_section, list):
+                update_items = tasks_section
+            else:
+                update_items = [raw_updates]
+        elif isinstance(raw_updates, list):
+            update_items = raw_updates
+        else:
+            raise RuntimeError("Invalid update payload: expected a list of task dicts or a dict containing a 'tasks' list.")
+
         allowed = list(allowed_fields or [
-            'description', 'date_deadline', 'planned_date_begin', 'planned_date_end',
-            'date_planned_start', 'date_planned_end',
-            'date_start', 'date_end', 'planned_hours', 'allocated_hours', 'priority',
+            "description",
+            "date_deadline",
+            "planned_date_begin",
+            "planned_date_end",
+            "date_planned_start",
+            "date_planned_end",
+            "date_start",
+            "date_end",
+            "planned_hours",
+            "allocated_hours",
+            "priority",
+            "allow_billable",
+            "milestone_id",
         ])
-        available_fields = set(self.fields_available('project.task'))
-        editable_fields, _ = self._resolve_fields('project.task', allowed, available_fields)
+
+        field_metadata = self.models.execute_kw(
+            self.db,
+            self.uid,
+            self.password,
+            "project.task",
+            "fields_get",
+            [],
+            {"attributes": ["type"]},
+        )
+        available_fields = set(field_metadata.keys())
+
+        editable_fields, _ = self._resolve_fields("project.task", allowed, available_fields)
         editable_fields_set = set(editable_fields)
 
+        create_candidates = list(dict.fromkeys(allowed + [
+            "name",
+            "project_id",
+            "stage_id",
+            "tag_ids",
+            "parent_id",
+        ]))
+        creatable_fields, _ = self._resolve_fields("project.task", create_candidates, available_fields)
+        creatable_fields_set = set(creatable_fields)
+
+        default_project_ids: List[int] = []
+        if isinstance(raw_updates, dict):
+            meta = raw_updates.get("meta")
+            if isinstance(meta, dict):
+                project_ids = meta.get("project_ids")
+                if isinstance(project_ids, list):
+                    default_project_ids = [pid for pid in project_ids if isinstance(pid, int)]
+
+        project_field = self._map_field_name("project.task", "project_id", available_fields)
+        name_field = self._map_field_name("project.task", "name", available_fields) or "name"
+
+        def normalize_value(field_name: str, value: Any) -> Any:
+            if value is None:
+                return None
+            field_type = (field_metadata.get(field_name) or {}).get("type")
+            if isinstance(value, bool):
+                if value is False and field_type in {"many2many", "one2many"}:
+                    return None
+                return value
+            if isinstance(value, (list, tuple)):
+                if field_type == "many2one":
+                    if not value:
+                        return False
+                    return value[0]
+                if field_type in {"many2many", "one2many"}:
+                    if not value:
+                        return [(6, 0, [])]
+                    if all(isinstance(v, int) for v in value):
+                        ids = list(dict.fromkeys(value))
+                        return [(6, 0, ids)]
+                    extracted = [v[0] for v in value if isinstance(v, (list, tuple)) and v]
+                    if extracted:
+                        ids = list(dict.fromkeys(extracted))
+                        return [(6, 0, ids)]
+                    return None
+            return value
+
         success, failure = 0, 0
-        for item in update_data:
-            task_id = item.get('id')
-            if not task_id:
+        for index, item in enumerate(update_items, start=1):
+            task_id = item.get("id")
+            target_fields = editable_fields_set if task_id else creatable_fields_set
+            values: Dict[str, Any] = {}
+            for key, value in item.items():
+                if key == "id":
+                    continue
+                mapped_key = self._map_field_name("project.task", key, available_fields)
+                if not mapped_key or mapped_key not in target_fields:
+                    continue
+                normalized = normalize_value(mapped_key, value)
+                if normalized is None:
+                    continue
+                values[mapped_key] = normalized
+
+            if task_id:
+                if not values:
+                    continue
+                try:
+                    self.models.execute_kw(
+                        self.db,
+                        self.uid,
+                        self.password,
+                        "project.task",
+                        "write",
+                        [[task_id], values],
+                    )
+                    success += 1
+                except Exception as exc:
+                    print(f"KO update id={task_id}: {exc}")
+                    failure += 1
+                continue
+
+            if name_field not in values or not values.get(name_field):
+                raw_name = item.get("name")
+                normalized_name = normalize_value(name_field, raw_name)
+                if normalized_name:
+                    values[name_field] = normalized_name
+
+            if project_field and project_field not in values:
+                raw_project = item.get("project_id")
+                normalized_project = normalize_value(project_field, raw_project)
+                if normalized_project is None and default_project_ids:
+                    normalized_project = default_project_ids[0]
+                if normalized_project:
+                    values[project_field] = normalized_project
+
+            if not values.get(name_field):
                 failure += 1
+                print(f"KO create missing name for task index={index} (payload keys: {sorted(item.keys())})")
                 continue
-            values = {
-                mapped_key: value
-                for key, value in item.items()
-                if key != 'id'
-                for mapped_key in [self._map_field_name('project.task', key, available_fields)]
-                if mapped_key and mapped_key in editable_fields_set and value is not None
-            }
-            if not values:
-                continue
+
+            if project_field:
+                project_value = values.get(project_field)
+                if not project_value and default_project_ids:
+                    values[project_field] = default_project_ids[0]
+                    project_value = values[project_field]
+                if not project_value:
+                    failure += 1
+                    print(f"KO create name={values.get(name_field)!r}: missing project_id")
+                    continue
+
             try:
-                self.models.execute_kw(
+                created_id = self.models.execute_kw(
                     self.db,
                     self.uid,
                     self.password,
-                    'project.task',
-                    'write',
-                    [[task_id], values],
+                    "project.task",
+                    "create",
+                    [values],
                 )
-                success += 1
+                if isinstance(created_id, int):
+                    success += 1
+                else:
+                    success += len(created_id or [])
             except Exception as exc:
-                print(f"KO id={task_id}: {exc}")
+                print(f"KO create name={values.get(name_field)!r}: {exc}")
                 failure += 1
+
         return success, failure
