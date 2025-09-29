@@ -27,7 +27,7 @@ def main() -> None:
         sys.exit(1)
 
     ok, ko = project.import_tasks(
-        updates_path='tasks_gantt_role_balanced_v2.json',
+        updates_path='tasks_interpreteur_description_plaintext_v3.json',
         allowed_fields=ALLOWED_FIELDS,
     )
     print(f"MAJ terminee: OK={ok} KO={ko}")
